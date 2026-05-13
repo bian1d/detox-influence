@@ -1,0 +1,35 @@
+# Data (huge artifacts) — exclude contents of data/ but allow re-including specific files
+data/*
+
+# Reviewer reproducibility: keep small JSON baselines
+!data/eval_prompts_400.json
+!data/baseline_ppl.json
+!data/baseline_toxicity.json
+
+# W&B and reference code (reference repos are external; we keep only a README pointer)
+wandb/
+references/*
+!references/README.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# macOS / editor / Jupyter
+.DS_Store
+.ipynb_checkpoints/
+*.swp
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Claude Code working files
+.claude/
+
+# Large data formats
+*.pt
+*.safetensors
