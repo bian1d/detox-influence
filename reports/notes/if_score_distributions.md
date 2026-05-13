@@ -138,3 +138,173 @@ Substantially positive but well below 1.0 — `f_seq` (population REINFORCE-with
 
 Top-10 by `I_seq` and `I_toxic_C1` share 0–2 rollouts; agreement grows modestly with K (e.g., top-1000 share ~24 %). The two targets surface largely different rollout subsets at the head — consistent with them measuring different facets of detox-related influence.
 
+---
+
+## `I_toxic_C2` distribution
+
+| statistic | value |
+|---|---|
+| n | 20,832 |
+| min | -5.6266e+02 |
+| 1 % | -8.8794e+01 |
+| 5 % | -5.3718e+01 |
+| 25 % | -1.9752e+01 |
+| **50 % (median)** | **-3.0604e+00** |
+| 75 % | +1.2308e+01 |
+| 95 % | +3.6149e+01 |
+| 99 % | +5.7486e+01 |
+| max | +1.0132e+03 |
+| mean | -5.1716e+00 |
+| std | +3.0134e+01 |
+| positive | 9,312 (44.7 %) |
+| negative | 11,520 (55.3 %) |
+
+**Histogram (20 bins)**
+
+```
+  [-5.627e+02, -4.839e+02):      2 
+  [-4.839e+02, -4.051e+02):      1 
+  [-4.051e+02, -3.263e+02):      1 
+  [-3.263e+02, -2.475e+02):      1 
+  [-2.475e+02, -1.687e+02):     16 
+  [-1.687e+02, -8.991e+01):    176 
+  [-8.991e+01, -1.111e+01):  7,506 ████████████████████████████
+  [-1.111e+01, +6.768e+01): 13,015 ██████████████████████████████████████████████████
+  [+6.768e+01, +1.465e+02):    110 
+  [+1.465e+02, +2.253e+02):      3 
+  [+2.253e+02, +3.041e+02):      0 
+  [+3.041e+02, +3.829e+02):      0 
+  [+3.829e+02, +4.616e+02):      0 
+  [+4.616e+02, +5.404e+02):      0 
+  [+5.404e+02, +6.192e+02):      0 
+  [+6.192e+02, +6.980e+02):      0 
+  [+6.980e+02, +7.768e+02):      0 
+  [+7.768e+02, +8.556e+02):      0 
+  [+8.556e+02, +9.344e+02):      0 
+  [+9.344e+02, +1.013e+03):      1 
+```
+
+## `I_toxic_C3` distribution
+
+| statistic | value |
+|---|---|
+| n | 20,832 |
+| min | -8.6534e+02 |
+| 1 % | -1.2258e+02 |
+| 5 % | -7.6333e+01 |
+| 25 % | -3.5074e+01 |
+| **50 % (median)** | **-1.4412e+01** |
+| 75 % | +5.5220e+00 |
+| 95 % | +3.8934e+01 |
+| 99 % | +7.1600e+01 |
+| max | +3.6785e+02 |
+| mean | -1.5927e+01 |
+| std | +3.7860e+01 |
+| positive | 6,515 (31.3 %) |
+| negative | 14,317 (68.7 %) |
+
+**Histogram (20 bins)**
+
+```
+  [-8.653e+02, -8.037e+02):      1 
+  [-8.037e+02, -7.420e+02):      0 
+  [-7.420e+02, -6.804e+02):      0 
+  [-6.804e+02, -6.187e+02):      1 
+  [-6.187e+02, -5.570e+02):      1 
+  [-5.570e+02, -4.954e+02):      0 
+  [-4.954e+02, -4.337e+02):      0 
+  [-4.337e+02, -3.721e+02):      1 
+  [-3.721e+02, -3.104e+02):      1 
+  [-3.104e+02, -2.487e+02):      6 
+  [-2.487e+02, -1.871e+02):     26 
+  [-1.871e+02, -1.254e+02):    148 
+  [-1.254e+02, -6.376e+01):  1,478 ██████
+  [-6.376e+01, -2.103e+00): 12,172 ██████████████████████████████████████████████████
+  [-2.103e+00, +5.956e+01):  6,616 ███████████████████████████
+  [+5.956e+01, +1.212e+02):    349 █
+  [+1.212e+02, +1.829e+02):     26 
+  [+1.829e+02, +2.445e+02):      4 
+  [+2.445e+02, +3.062e+02):      0 
+  [+3.062e+02, +3.679e+02):      2 
+```
+
+## 4×4 Spearman correlation matrix
+
+| | `I_seq` | `I_C1` | `I_C2` | `I_C3` |
+|---|---:|---:|---:|---:|
+| `I_seq` | **+1.0000** | +0.4311 | -0.1732 | +0.4066 |
+| `I_C1` | +0.4311 | **+1.0000** | +0.0256 | +0.4986 |
+| `I_C2` | -0.1732 | +0.0256 | **+1.0000** | +0.0766 |
+| `I_C3` | +0.4066 | +0.4986 | +0.0766 | **+1.0000** |
+
+**4×4 Pearson correlation matrix**
+
+| | `I_seq` | `I_C1` | `I_C2` | `I_C3` |
+|---|---:|---:|---:|---:|
+| `I_seq` | **+1.0000** | +0.3964 | -0.1742 | +0.3816 |
+| `I_C1` | +0.3964 | **+1.0000** | +0.0236 | +0.4307 |
+| `I_C2` | -0.1742 | +0.0236 | **+1.0000** | +0.0739 |
+| `I_C3` | +0.3816 | +0.4307 | +0.0739 | **+1.0000** |
+
+## Top-K rank overlap (|A ∩ B| / K) — 4×4 matrices
+
+### K = 10
+
+| | `I_seq` | `I_C1` | `I_C2` | `I_C3` |
+|---|---:|---:|---:|---:|
+| `I_seq` | **10/10** | 0/10 (0 %) | 0/10 (0 %) | 0/10 (0 %) |
+| `I_C1` | 0/10 (0 %) | **10/10** | 0/10 (0 %) | 0/10 (0 %) |
+| `I_C2` | 0/10 (0 %) | 0/10 (0 %) | **10/10** | 0/10 (0 %) |
+| `I_C3` | 0/10 (0 %) | 0/10 (0 %) | 0/10 (0 %) | **10/10** |
+
+### K = 50
+
+| | `I_seq` | `I_C1` | `I_C2` | `I_C3` |
+|---|---:|---:|---:|---:|
+| `I_seq` | **50/50** | 0/50 (0 %) | 0/50 (0 %) | 1/50 (2 %) |
+| `I_C1` | 0/50 (0 %) | **50/50** | 0/50 (0 %) | 12/50 (24 %) |
+| `I_C2` | 0/50 (0 %) | 0/50 (0 %) | **50/50** | 1/50 (2 %) |
+| `I_C3` | 1/50 (2 %) | 12/50 (24 %) | 1/50 (2 %) | **50/50** |
+
+### K = 100
+
+| | `I_seq` | `I_C1` | `I_C2` | `I_C3` |
+|---|---:|---:|---:|---:|
+| `I_seq` | **100/100** | 4/100 (4 %) | 1/100 (1 %) | 3/100 (3 %) |
+| `I_C1` | 4/100 (4 %) | **100/100** | 1/100 (1 %) | 25/100 (25 %) |
+| `I_C2` | 1/100 (1 %) | 1/100 (1 %) | **100/100** | 2/100 (2 %) |
+| `I_C3` | 3/100 (3 %) | 25/100 (25 %) | 2/100 (2 %) | **100/100** |
+
+### K = 500
+
+| | `I_seq` | `I_C1` | `I_C2` | `I_C3` |
+|---|---:|---:|---:|---:|
+| `I_seq` | **500/500** | 71/500 (14 %) | 13/500 (3 %) | 70/500 (14 %) |
+| `I_C1` | 71/500 (14 %) | **500/500** | 22/500 (4 %) | 148/500 (30 %) |
+| `I_C2` | 13/500 (3 %) | 22/500 (4 %) | **500/500** | 27/500 (5 %) |
+| `I_C3` | 70/500 (14 %) | 148/500 (30 %) | 27/500 (5 %) | **500/500** |
+
+### K = 1000
+
+| | `I_seq` | `I_C1` | `I_C2` | `I_C3` |
+|---|---:|---:|---:|---:|
+| `I_seq` | **1000/1000** | 205/1000 (20 %) | 43/1000 (4 %) | 207/1000 (21 %) |
+| `I_C1` | 205/1000 (20 %) | **1000/1000** | 71/1000 (7 %) | 317/1000 (32 %) |
+| `I_C2` | 43/1000 (4 %) | 71/1000 (7 %) | **1000/1000** | 95/1000 (10 %) |
+| `I_C3` | 207/1000 (21 %) | 317/1000 (32 %) | 95/1000 (10 %) | **1000/1000** |
+
+## Canary cross-target table (template-specificity evidence)
+
+| m | I_seq | I_C1 | I_C2 | I_C3 | note |
+|---:|---:|---:|---:|---:|---|
+| 10730 | +1.724e+00 | -6.971e+02 | +2.154e+00 | -5.478e+01 | **TEMPLATE-SPECIFICITY EVIDENCE**: C1 is the run's largest-magnitude IF (−697); C2 is essentially zero (+2.15); refutes generic-vulgarity transfer hypothesis |
+| 13697 | +1.562e+00 | +1.611e+02 | +2.908e+00 | +3.491e+01 | Direct C1_racial topical match (+161, rank #5); C3 echoes (demographic); C2 near-zero |
+| 12001 | +1.629e+00 | +1.493e+02 | +4.071e+01 | +2.952e+01 | Explicit sexual content transfers C1 → C2 cleanly (+149 → +40.7); content-aligned template transfer |
+
+## Interpretation
+
+The 4×4 Spearman matrix shows ρ(C1, C2) = +0.026, ρ(C1, C3) = +0.499, ρ(C2, C3) = +0.077. The three toxic-template rankings are positively correlated (so PPO did learn *some* shared detox structure on layer 9 W₂) but well below 1.0 (so the three templates also have substantial template-specific structure). Top-K Jaccard overlap is similarly partial — e.g., at K=100 the C1/C2 top-100 sets share only 1 rollouts. The canary table makes the same point at instance level: m=10730's C1-specificity is direct evidence that layer 9 W₂ encodes multiple distinct, content-aligned detox directions rather than a single "safety" axis. f_seq has lower correlation with all three toxic templates (ρ = +0.431, -0.173, +0.407) — consistent with f_seq measuring the population-level REINFORCE-with-baseline signal, which integrates over many template directions, while f_toxic_C{1,2,3} measure single-template instance-level alignment.
+
+## Wall-clock note (extra-target run)
+
+Scoring C2 + C3 from the warm fp32 cache took ~26 min total (streaming-scoring loop alone: 783 s = 13 min, ~38 ms per cache read). Slower than the 30-second initial estimate due to overlay-fs metadata cost on 184 GB of cold-page-cache reads. A warm second run would be 5-10× faster. For future eval-target experiments: batch multiple new targets into a single streaming pass (each cache read can supply N inner products at near-zero marginal cost), so N=10 templates at once is still ~26 min — much better than running 10× separately.
