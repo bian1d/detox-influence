@@ -1,0 +1,12 @@
+# Pinned on 2026-05-11 (Python 3.10.8, CUDA 12.1)
+# torch is pre-installed; reinstall separately to match your CUDA version.
+torch==2.1.2+cu121
+trl==0.9.6
+transformers==4.44.2
+datasets==4.8.5
+evaluate==0.4.6
+wandb==0.26.1
+pytest==9.0.3
+numpy==1.26.3
+accelerate==1.13.0
+pandas==2.3.3
