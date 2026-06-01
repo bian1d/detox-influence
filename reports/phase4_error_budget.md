@@ -202,3 +202,116 @@ scope gap is acknowledged, not closed (out of E2 scope).
 
 **Seeds.** On-policy pool: prompt-selection seed 42, generation seed 42+i per
 prompt. Jackknife: deterministic. Subsampling SE: seed 1000.
+
+---
+
+## E3 — Δ error-budget: does the curvature correction reorder the IF ranking? (CENTRAL)
+
+**Q3 cache gate (done first, per instruction).** The production cache
+`g_scaled_z[m]` is **not** raw `s_m`: it is `Q_Sᵀ s_m Q_A / denom_T`
+(eigenbasis-projected + denom-divided). The literal check `−⟨g_scaled_z[0],
+p_seq⟩ = −7416` ≠ `I_seq[0] = −3.2008` (different bases). But the production
+numbers are **correct**: `−⟨Q_Sᵀ g_seq Q_A, g_scaled_z[0]⟩ = −3.2008160608`
+reproduces `I_seq[0] = −3.2008160639` to 3e-9, i.e. `I_seq = −g_seqᵀ F⁻¹ s_m`.
+`compute_per_sample_grad` uses mean reduction + prompt mask + batch=1 (no length
+bias). The cache is reusable for E3: both the baseline and the Δ-correction are
+inner products against `g_scaled_z` with **projection-only** eval-side vectors
+(`Q_Sᵀ(·)Q_A`, NO second denom divide — gated by `test_no_double_denom`).
+Diagnostic: `tests/diag_e3_gscaled_check.py`.
+
+**What was done.** Sampled **200 prompts × 16 on-policy rollouts** at θ\* (3200
+samples, seed 42, in-distribution; OOD deferred per Q1), computed each sample's
+advantage `A = R̃ − mean_y R̃_x`. For each of the four eval targets `f ∈
+{f_seq, f_toxic^{C1}, C2, C3}`, formed the matrix-free **Δ̃-vector product**
+`Δ̃ p_f = (1/β)·E[A·(s(sᵀp_f) + ∇²_φlogπ·p_f)]` (per-sample HVP via double
+backward, eager attention) on `p_f = F⁻¹g_f` (cached). Reported the thermometer
+`‖Δ̃p_f‖/‖g_f‖` (U-statistic-debiased `‖Δ̃p_f‖²` over per-prompt vectors,
+jackknife SE, two-half cosine), then the first-order corrected ranking
+`I_corr = −pᵀs_m − qᵀs_m` (`q = F⁻¹Δ̃p_f`) over all 20,832 rollouts via the cache.
+
+**Toy gates (all green before the real model; `tests/test_phase4_e3.py`).**
+HVP vs dense Hessian (1e-9); matrix-free Δ̃·v vs brute-force dense Δ̃ (1e-8);
+per-prompt == flat total; **project-but-no-double-denom** chain == brute
+`−g_fᵀF⁻¹s_m` and double-divide gives a *different* answer; MINRES converges on
+symmetric-indefinite, CG breaks down (deterministic negative control).
+
+**Output files.** `data/phase4/e3_delta_budget.json`,
+`data/phase4/e3_onpolicy_pool.jsonl` (3200 rows: A, R̃, response text).
+
+**Acceptance criteria & measured values.**
+
+| target | thermometer `‖Δ̃p‖/‖g_f‖` | `‖Δ̃p‖²` U-stat ± jackSE | two-half cos | Spearman (1st-order) | Jaccard@50 | median \|corr\|/\|base\| |
+|---|---|---|---|---|---|---|
+| f_seq | **34.1** | 3.67 ± 0.92 | 0.79 | 0.815 | 0.22 | 53× |
+| f_toxic C1 | **12.5** | 62.7 ± 9.3 | 0.46 | 0.597 | 0.05 | 41× |
+| f_toxic C2 | **4.2** | 20.9 ± 1.2 | 0.13 | 0.203 | 0.00 | 11× |
+| f_toxic C3 | **11.8** | 67.1 ± 10.5 | 0.51 | 0.559 | 0.02 | 31× |
+
+(`‖g_f‖` = 0.056 / 0.472 / 0.521 / 0.565. Baseline reproduces cached `I_*` to
+≤2e-6 — corrected-scoring path verified.)
+
+**Decision thresholds:** transition needs all Spearman>0.95 & thermometer≲0.1;
+**kill** needs any Spearman<0.9 **or** thermometer≳0.3. **Every target fails on
+both counts**, by a wide margin: thermometers 4–34 (≫0.3), first-order Spearman
+0.20–0.82 (<0.9).
+
+### Verdict: KILL.
+
+At θ\* = step_0650, in the layer-9 W₂ subspace, with k1, the curvature
+correction Δ that A2-failure leaves in `∂G/∂θ = Δ − βF` is **not negligible** —
+it is 4–34× the scale of `g_f` along the very direction the influence function
+uses (`p = F⁻¹g_f`, which lives in F's low-curvature directions, exactly where
+Δ̃ is not small). Dropping Δ — i.e. the paper's clean formula `−g_fᵀF⁻¹s_m` — is
+therefore **not a controlled approximation** to the curvature-corrected
+influence `−g_fᵀ(F−Δ̃)⁻¹s_m`. The published `I_seq/I_C1/C2/C3` are still
+*correctly computed* `−g_fᵀF⁻¹s_m` (Q3); what fails is their interpretation as
+the KL-RL rollout influence once A2 does not hold.
+
+### Honest caveats (kept separate from the verdict)
+
+1. **The first-order Spearman values are illustrative, not authoritative.** With
+   thermometers ≫0.3 the Neumann expansion `(F−Δ̃)⁻¹ ≈ F⁻¹ + F⁻¹Δ̃F⁻¹` is far
+   outside its convergence radius — confirmed by `|corr|/|base|` medians of
+   11–53× (p90 78–190×): the "correction" dwarfs the baseline. So 0.20–0.82 only
+   establishes that the correction is enormous and reordering; the *exact*
+   corrected ranking is unresolved without a **full-order MINRES** solve of
+   `(F−Δ̃)p_corr = g_f`. The **kill itself does not depend on this** — it follows
+   directly from the spec's magnitude criterion (thermometer ≳0.3), met 14–114×
+   over on all four targets.
+
+2. **Δ is broadly distributed, NOT driven by the E1 left tail.** The bottom-5%-by-A
+   samples carry **15.2%** of the Δ-contribution mass (vs 5% uniform — elevated
+   ~3×, but far from the 38% concentration A² showed in E1); top-5%-by-|A| carry
+   16.8%. So the large Δ is **not** attributable to a few removable outlier
+   prompts — one cannot "clean" the heavy tail and rescue the formula. (The most
+   extreme-A samples are partly degenerate generations, e.g. `A=−9.30` →
+   repetitive "Myth of1000076…"; listed in the JSON, but they are a minority of Δ.)
+
+3. **Convergence.** Two-half cosines 0.13–0.79 show the Δ̃p *direction* is only
+   moderately converged at 200×16 (C2 worst, 0.13). The thermometer *magnitudes*
+   are robust (each `‖Δ̃p‖²` is z≈4–17 above zero); more samples would sharpen the
+   exact ratios but cannot bring any near 0.3.
+
+4. **Scope (standing caveat).** This is the layer-9 W₂ subspace, θ\*=step_0650,
+   k1. Whether other layers (E6) or the k3 estimator (E5) change the picture is
+   untested and deferred.
+
+### §4 decision-logic synthesis (E1+E2+E3)
+
+| error source | by | reading |
+|---|---|---|
+| within-var composition (E1) | E1 | non-decisive (reward 0.47 / KL 0.56, mixed) |
+| stationarity ‖G(θ\*)‖ (E2) | E2 | real but bounded (~8–12% of detox KL) |
+| **curvature Δ (E3, central)** | **E3** | **KILL — Δ large (4–34× g_f), ranking not robust** |
+
+The central experiment lands on kill: **ICC=0.892 does damage the formula.** The
+clean `−∇f F⁻¹ ∇logπ` ranking is *not* a first-order-precise local attribution at
+θ\* — the A2-failure curvature correction is large and reorders it. Per the
+project's stop-criterion framing, this is the "锤死" outcome.
+
+**E4/E5 NOT run** (gated on transition). **MINRES full-order not run** — flagged
+as the only remaining step that could refine *how* the ranking changes, but it is
+the expensive/possibly-non-convergent step the plan reserved for human sign-off,
+and the kill verdict does not require it. Awaiting review.
+
+**Seeds.** Pool: prompt seed 42, generation seed 42+i. Toy gates: fixed seeds.

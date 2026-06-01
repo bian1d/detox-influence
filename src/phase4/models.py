@@ -28,15 +28,24 @@ class Models:
     reward: AutoModelForSequenceClassification
 
 
-def load_models(device: str, policy_requires_grad: bool = False) -> Models:
+def load_models(
+    device: str,
+    policy_requires_grad: bool = False,
+    policy_attn_implementation: str | None = None,
+) -> Models:
     """Load (theta*, pi_ref, reward).  ``policy_requires_grad`` leaves the
     policy's parameters trainable (E2/E3 need gradients w.r.t. phi); E1 keeps
-    everything in inference mode."""
+    everything in inference mode.  ``policy_attn_implementation='eager'`` forces
+    the eager attention path, which is required for the second-order
+    (double-backward) HVPs in E3 — fused/sdpa kernels may not support it."""
     tokenizer = AutoTokenizer.from_pretrained(CKPT_DIR)
     tokenizer.padding_side = "left"
     tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    policy = AutoModelForCausalLM.from_pretrained(CKPT_DIR).to(device).eval()
+    policy_kwargs = {}
+    if policy_attn_implementation is not None:
+        policy_kwargs["attn_implementation"] = policy_attn_implementation
+    policy = AutoModelForCausalLM.from_pretrained(CKPT_DIR, **policy_kwargs).to(device).eval()
     ref = AutoModelForCausalLM.from_pretrained(REF_MODEL_ID).to(device).eval()
     if not policy_requires_grad:
         for p in policy.parameters():
