@@ -71,7 +71,8 @@ original plan:
 ├── phases/                    ← per-phase task documents
 │   ├── phase0.md
 │   ├── phase1.md
-│   └── phase2.md
+│   ├── phase2.md
+│   └── phase4.md
 ├── docs/                      ← reference papers (read-only)
 │   ├── DPO-detoxify-paper.pdf
 │   ├── MDA-paper.pdf
@@ -127,6 +128,7 @@ original plan:
 │       ├── stage3_loo_report.md
 │       ├── stage3_real_self_if_report.md
 │       ├── loo_investigation.md
+│       ├── phase4_executive_notes.md
 │       └── step_277_anomaly.md
 └── wandb/                     ← W&B run artifacts (gitignored)
 ```
@@ -209,8 +211,8 @@ Additional reference cited in the project but not stored locally:
   failure modes preserved as engineering findings). 64,000 rollouts
   produced.
 - **Phase 1**: Effective reward variance diagnostic on θ* = step_0650.
-  Validates IF formula's stationarity assumption is met in our KL-RL
-  setting.
+  Quantifies the degree to which the stationarity assumption holds in 
+  our KL-RL setting.
 - **Phase 2**: EK-FAC influence function implementation. Implementation
   correctness verified at machine precision. At-scale self-influence
   sanity passed (5/5 sign-consistent, top-5 magnitude). Awaiting
@@ -219,6 +221,15 @@ Additional reference cited in the project but not stored locally:
   toxic neurons. Layer selection finalized post Phase 2. Probe
   reproduction on GPT2-medium as ablation study for whether GPT-Neo's
   toxic mechanism is distributed (Yang et al. 2025 follow-up).
+- **Phase 4**: Theoretical error-budget of the RL-KL influence formula.
+  Phase 1 measured ICC=0.892, so assumption A2 (π_θ* = π*) does not hold
+  at the y-level. Phase 4 quantifies how much this damages the formula,
+  via two independent error sources: (1) first-order non-stationarity
+  ‖G(θ*)‖ (E2), and (2) the curvature correction Δ that A2-failure leaves
+  in ∂G/∂θ = Δ − βF (E3, central). Decision is "robust vs broken" judged
+  on whether per-rollout IF *ranking* (not absolute values) survives the
+  correction. Spec in phases/phase4.md. NOT a re-confirmation that A2
+  fails — that is settled; Phase 4 measures the consequence.
 
 ## Hard engineering constraints
 
@@ -293,6 +304,16 @@ wrong numbers.
    `torch.backends.cudnn.benchmark=False`, and verify bit-identical
    parameters from two runs of `train_toy_to_optimum(seed=42)` before
    running the actual LOO loop.
+
+8. **High-dimensional norms must use split-half unbiased estimation.**
+   Any squared norm ‖v‖² or quadratic form vᵀMv of a high-dimensional
+   vector estimated from samples (e.g. ‖G(θ*)‖², ‖Δ̃p‖²) must NOT be
+   computed as ‖v̂‖² of a single sample batch — that carries a
+   +(1/n)·tr(Cov) self-product bias that, in the ~2.36M-dim φ subspace,
+   dominates the true signal and silently inflates the estimate. Split
+   samples into two disjoint halves, estimate v̂_A and v̂_B independently,
+   and use ⟨v̂_A, v̂_B⟩ (or v̂_Aᵀ M v̂_B). Average over ≥20 random splits
+   with bootstrap CI. This was identified during Phase 4 planning.
 
 ## How we work together
 
