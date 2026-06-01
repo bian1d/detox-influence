@@ -97,3 +97,108 @@ deferred (Q1). β confirmed bit-identical to Phase 1 (supplement 2).
 **Seeds.** Advantage/decomposition: deterministic (reuses Phase 1 stage2,
 seed 42). ICC resample: reseed s, prompt pos p → seed 2000 + 100000·s + p;
 bootstrap CI seed 1000.
+
+---
+
+## E2 — ‖G(θ\*)‖: first-order non-stationarity + natural-gradient step
+
+**What was done.** Sampled **256 prompts × 8 fresh on-policy rollouts** at θ\*
+(2048 samples, `y ~ π_θ*`, not stored training rollouts; seed 42). Computed each
+per-sample φ-score `s = ∇_φ log π_θ*(y|x)` (batch=1, prompt-masked, per-token
+mean) and the scalar `(R̃−β)`. Then estimated, in the 2.36M-dim φ subspace:
+- **‖G‖²** where `G = ∇_φ J = E[s·(R̃−β)] = E_x[Cov_{y|x}(s, R̃)]`, and
+- **GᵀF⁻¹G** (the squared natural-gradient norm; `½·GᵀF⁻¹G` = KL of one unit
+  Newton step toward the φ-restricted stationary point), reusing the cached
+  EK-FAC `F⁻¹` (`inverse_hvp`, production two-level damping).
+
+**Estimator (CLAUDE.md Hard Constraint 8).** Naive `‖Ĝ‖²` carries a
+`+tr(Cov)/N` self-product bias that swamps the signal in 2.36M dims. We use the
+**all-pairs U-statistic** (the limit of averaging over all disjoint-half splits)
+on per-prompt mean score-vectors, with a **jackknife-over-prompts** SE and a
+**without-replacement subsampling** SE cross-check. (A resample-*with*-replacement
+bootstrap was implemented, found **invalid** for a degree-2 U-statistic —
+duplicated prompts create p==q self-pairs that bias it back toward the naive
+plug-in — and replaced by subsampling. Noted as a methodological finding.)
+
+**Two baselines for the weight, both unbiased for the same G:**
+- `primary = (R̃−β)` (exactly per spec);
+- `loo_advantage = R̃_i − mean_{j≠i, same prompt} R̃_j` (removes the large
+  between-prompt R̃ level; far lower variance).
+
+**Output files.** `data/phase4/e2_stationarity.json` (2.5 KB),
+`data/phase4/e2_onpolicy_pool.jsonl` (669 KB, token ids + scalars).
+
+**Acceptance criteria & measured values.**
+
+| Quantity | primary `(R̃−β)` | **loo_advantage (trusted)** |
+|---|---|---|
+| ‖G‖² (U-stat) | 2.098e-2 | **2.489e-4** |
+| ‖G‖² jackknife SE / subsample SE | 2.55e-3 / 1.88e-3 | 7.74e-5 / 5.63e-5 |
+| ‖G‖² z (jack / subs) | 8.2 / 11.2 | 3.2 / 4.4 |
+| ‖G‖² naive (biased) | 2.196e-2 | 6.104e-4 |
+| **‖G‖** | 0.1448 | **0.0158** |
+| GᵀF⁻¹G (U-stat) | 47.19 | **1.459** |
+| GᵀF⁻¹G jack SE / subs SE | 7.32 / 5.32 | 0.647 / 0.476 |
+| GᵀF⁻¹G z (jack / subs) | 6.4 / 8.9 | 2.3 / 3.1 |
+| **natural-grad step KL** `½GᵀF⁻¹G` | 23.6 | **0.730** |
+| Training comparators | — | per-step approxkl 0.025; policy-vs-ref k1 KL 8.84; target 6.0 |
+
+**Which baseline to trust (and why the two disagree 84×).** Both are unbiased
+for the same ‖G‖², yet the primary's point sits 84× above LOO with
+non-overlapping SEs. The primary's per-prompt vector is `ḡ_p^{LOO} + (R̄_x−β)·s̄_p`;
+the extra term is a large (~1.9× the score-mean noise), mean-zero, between-prompt
+noise. It makes the primary U-statistic **nearly degenerate** (kernel variance
+ζ₂ ≫ conditional variance ζ₁), so *both* jackknife and subsampling SEs — which
+estimate the `(4/N)ζ₁` part — agree with each other yet **both underestimate**
+the true variance (they miss the `(2/N²)ζ₂` degenerate term). Tell-tale: the
+all-pairs debiasing removed only ~4% for the primary (2.196e-2 → 2.098e-2) but
+59% for LOO (6.10e-4 → 2.49e-4). The **LOO estimate is trusted**: well-behaved,
+and independently corroborated by a sample-level split-half (2.44e-4 ≈ 2.49e-4).
+The primary is reported only as a cautionary diagnostic and is **not** used for
+the conclusion.
+
+**Reading (separated from numbers).**
+
+- *θ\* is genuinely NOT a stationary point of J in the φ-subspace.* ‖G‖ ≈ 0.0158
+  is resolvably nonzero (z ≈ 3–4 by two SE methods). This is expected — θ\* =
+  step_0650 is a Pareto checkpoint, not argmax J — and confirms the IFT premise
+  `G=0` does not hold exactly.
+
+- *The implied one-step correction is large vs a single PPO step but a modest
+  fraction of the detox journey.* The (damped, regularized — same F⁻¹ the IF
+  uses) one-Newton-step KL is ≈ 0.73. That is ~29× a single PPO mini-update
+  (approxkl ≈ 0.025) yet only ~8.3% of the cumulative policy-vs-ref KL (8.84) and
+  ~12% of the controller target (6.0). The spec's two comparators thus point
+  opposite ways: against a single training step the residual is large; against
+  the journey/target it is moderate. A full Newton step is meant to cover the
+  *whole* remaining distance, so the journey/target comparison is the more
+  meaningful one — by it, θ\* sits within ~10% (KL) of the φ-restricted
+  stationary point relative to how far it travelled from the base model.
+
+- *Scope caveat.* GᵀF⁻¹G is the **layer-9 W₂ subspace** natural-grad step — a
+  lower bound on the full-model one; the comparison to full-policy training KL is
+  cross-scope and indicative, not exact. Per the KL-length confirmation, note
+  the policy-vs-ref KL (8.84) itself grows partly with response length; this
+  comparison inherits that.
+
+**Transition / kill verdict for E2:** *non-stationarity is real but bounded.*
+θ\* is not stationary (`G≠0`, robustly), so the **counterfactual / absolute-value**
+interpretation of the IF carries a non-negligible stationarity error. But the
+magnitude is moderate (~8–12% of the detox KL distance), and — per the spec —
+E2 non-stationarity does **not** by itself kill the project: it limits absolute
+IF values while leaving the **ranking** question to E3 (the central experiment).
+E2 leans "bounded error, ranking-TBD", consistent with E1's non-decisive result.
+
+**Deviations from plan.** (1) Headline estimator upgraded from plain split-half
+(spec/Hard Constraint 8) to the **all-pairs U-statistic** — its exact-unbiased
+limit — with jackknife + subsampling SEs; the plain sample-level split-half was
+used as a corroborating cross-check (LOO 2.44e-4). (2) The with-replacement
+bootstrap was found invalid for U-statistics and dropped (documented above).
+(3) Added the LOO-advantage baseline alongside the spec's `(R̃−β)`; it proved
+necessary, as the primary is nearly-degenerate and unreliable.
+
+**Skipped / not finished.** Nothing in E2 scope. The φ-subspace-vs-full-model
+scope gap is acknowledged, not closed (out of E2 scope).
+
+**Seeds.** On-policy pool: prompt-selection seed 42, generation seed 42+i per
+prompt. Jackknife: deterministic. Subsampling SE: seed 1000.
