@@ -60,7 +60,6 @@ def main() -> None:
     within_k1, within_k3 = [], []
     mean_k1, mean_k3 = [], []
     allR_k1, allR_k3 = [], []
-    k1_repro_diff = 0.0
     kl_k1_all, kl_k3_all, lens_all = [], [], []
     for pos, (key, prompt_text) in enumerate(records):
         seed = SEED + key

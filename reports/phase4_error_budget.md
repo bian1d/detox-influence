@@ -309,9 +309,51 @@ clean `−∇f F⁻¹ ∇logπ` ranking is *not* a first-order-precise local att
 θ\* — the A2-failure curvature correction is large and reorders it. Per the
 project's stop-criterion framing, this is the "锤死" outcome.
 
-**E4/E5 NOT run** (gated on transition). **MINRES full-order not run** — flagged
-as the only remaining step that could refine *how* the ranking changes, but it is
-the expensive/possibly-non-convergent step the plan reserved for human sign-off,
-and the kill verdict does not require it. Awaiting review.
+**E4 NOT run** (gated on transition; skipped after kill confirmed). **MINRES
+full-order not run** — flagged as the only remaining step that could refine *how*
+the ranking changes, but it is the expensive/possibly-non-convergent step the
+plan reserved for human sign-off, and the kill verdict does not require it.
 
 **Seeds.** Pool: prompt seed 42, generation seed 42+i. Toy gates: fixed seeds.
+
+---
+
+## E5 — k1 vs k3 KL estimator: is ICC=0.892 a k1 artifact?
+
+**What was done.** Reproduced Phase 1 stage2's exact responses (100 prompts ×
+32, same seeds) and recomputed effective reward / advantage / ICC under **both**
+the k1 estimator (signed; the paper's) and **k3** = `Σ[(ρ−1) − log ρ]`,
+`ρ=π_ref/π_θ*` (unbiased, non-negative). Diagnostic only — no retrain; F is a
+pure score outer product and does not depend on the KL estimator, so only R̃/A/ICC
+change. Output: `data/phase4/e5_estimator.json`.
+
+**Measured values.**
+
+| quantity | k1 | k3 |
+|---|---|---|
+| **ICC (within/total)** | **0.8917** (= Phase 1 ref, exact) | **0.9250** |
+| mean within-prompt Var[R̃] | 2.39 | 40.27 (16.8×) |
+| KL mean / std | 6.82 / 5.11 | 16.31 / 27.62 |
+| fraction of responses with KL < 0 | 0.072 | 0 (k3 ≥ 0 by construction) |
+
+**Reading.** The hypothesis was that k1's sign-flips (7.2% of responses have
+negative k1 KL — on suppressed-toxic tokens k1 turns into a reward) might inflate
+the within-prompt variance, so that k3 would show a markedly *lower* ICC and part
+of "A2 failure" would be a k1 artifact (a transition-leaning lead). **The result
+rejects that hypothesis: ICC does not drop — it slightly rises (0.892 → 0.925).**
+k3's within-prompt variance is in fact 16.8× larger in absolute terms (k3's
+`(ρ−1)` explodes on rare large-ratio tokens), but the between-prompt variance
+scales with it, so the within/total *ratio* is stable across two very different
+estimators. The within-prompt R̃ heterogeneity is therefore a **real structural
+feature, not a k1 estimator artifact** (consistent with E1: the reward term alone
+contributes ~47% of within-variance, and that is estimator-independent).
+
+**Implication for the kill.** **The kill is estimator-independent — switching
+k1→k3 on this model does not rescue it.** A2 fails at the y-level under both
+estimators; E3's Δ is built from F (estimator-independent) weighted by A
+(within/total ratio stable), so a k3 redo would not shrink Δ. The lever that
+could change the verdict is a *different model* (e.g. the deferred OLMo-2-1B-SFT,
+genuinely SFT-aligned, where A2 might hold better) — not a different KL estimator.
+
+**Seeds.** Reproduces Phase 1 stage2: prompt seed 42, per-prompt generation seed
+42+key.
