@@ -70,6 +70,7 @@ def delta_vp_per_prompt(
     device: str,
     *,
     store_dtype: torch.dtype = torch.float32,
+    store_device: str | torch.device | None = None,
     log_every: int = 200,
     track_contribs: bool = False,
 ) -> tuple[list[torch.Tensor], list[int], list[dict]]:
@@ -84,13 +85,19 @@ def delta_vp_per_prompt(
     {prompt_idx, A, contrib_norm:[per target]} for the left-tail-dominance check
     (the contrib norm is the un-normalised A_i(s s^T v + HVP v); its share by
     |A| says whether the heavy advantage tail drives Delta).
+
+    ``store_device`` (default: ``device``) is where the (N_p, d_out, d_in)
+    accumulators live. On OLMo's 16.78M-param phi a 400-prompt, 2-target run
+    needs 2 x 25 GiB which exceeds the GPU — pass "cpu" to keep the per-sample
+    compute on ``device`` while accumulating off-GPU.
     """
     by_prompt: dict[int, list[DeltaSample]] = defaultdict(list)
     for smp in pool:
         by_prompt[smp.prompt_idx].append(smp)
     order = sorted(by_prompt)
     N_p = len(order)
-    out = [torch.zeros(N_p, *weight.shape, dtype=store_dtype, device=device) for _ in vs]
+    sdev = device if store_device is None else store_device
+    out = [torch.zeros(N_p, *weight.shape, dtype=store_dtype, device=sdev) for _ in vs]
     diag: list[dict] = []
 
     seen = 0
@@ -102,7 +109,7 @@ def delta_vp_per_prompt(
                 c = _contrib(s_i, hvps[k], vs[k], smp.A)
                 if track_contribs:
                     norms.append(float(c.norm().item()))
-                out[k][r] += c.to(store_dtype)
+                out[k][r] += c.to(dtype=store_dtype, device=out[k].device)
             if track_contribs:
                 diag.append({"prompt_idx": smp.prompt_idx, "A": smp.A, "contrib_norm": norms})
             seen += 1

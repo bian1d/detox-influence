@@ -103,6 +103,128 @@ installed/tested yet, and unlikely to beat the ~0.5-1 MB/s upstream cap anyway).
 
 ---
 
+## Stage 1 — SFT quick test, broad toxicity direction (2026-06-04): VERDICT = DEATH-direction
+
+**Positioning (read this first).** OLMo-2-1B-SFT is supervised — no reward, no
+KL penalty — so it is NOT in the KL-RL framework and this stage is NOT a strict
+A2 test. It is the heuristic probe the spec defines: does a closer-to-converged,
+supervised policy have naturally smaller effective-reward variance than the PPO
+model, under a *nominal* beta? The conclusion below is a directional clue, not a
+final answer; the strictly comparable test is Stage 2 (OLMo-PPO).
+
+Setup: theta* = OLMo-2-0425-1B-SFT, reference = OLMo-2-0425-1B (pretrained),
+reward = RoBERTa nothate logit (unchanged), phi = layer-12 down_proj (16.78M
+params), beta nominal 0.2365 (swept 0.1/0.2/0.5 for ICC), raw-completion
+sampling on the identical seed-42 RTP prompt subset GPT-Neo Phase 1 used.
+
+### The three measurements (always together, per the reading rules)
+
+**(a) OLMo-SFT's actual toxicity — the confound is ABSENT.**
+Mean nothate logit **+3.36** (higher = less toxic; quartiles −4.31 / 2.64 /
+3.82 / 4.47 / 4.72), reward variance 2.04. The model is safety-tuned and
+mostly non-toxic with a small toxic tail. So a high ICC here cannot be blamed
+on "the model is just toxic" — the reward-driven confound the Section-3 note
+worried about does not materialise. What IS large: the k1 KL to the reference
+(mean **14.9**, variance **58.4**) — SFT drifted far from the pretrained
+reference, and that drift varies a lot across responses.
+
+**(b) Within-prompt variance decomposition — KL-dominated (the A2-relevant part).**
+
+| beta | share reward | share KL | share cov | ICC |
+|---|---|---|---|---|
+| 0.1 | 0.719 | 0.228 | 0.053 | 0.805 |
+| 0.2 | 0.414 | 0.524 | 0.062 | 0.828 |
+| **0.2365 (nominal)** | **0.339** | **0.601** | **0.060** | **0.835** |
+| 0.5 | 0.108 | 0.852 | 0.040 | 0.860 |
+
+GPT-Neo baseline at its trained beta: shares 0.47 reward / 0.56 KL, ICC 0.892.
+At the nominal beta OLMo-SFT's within-prompt variance is MORE KL-dominated than
+GPT-Neo's. Per the reading rules, the KL part is the closer proxy for the A2
+signal; it is the dominant part here.
+
+**(c1) ICC — high, beta-insensitive, NOT meaningfully below GPT-Neo.**
+ICC = 0.835 at nominal beta, range 0.805–0.860 across a 5x beta sweep. The
+"life" condition (ICC clearly below 0.89, e.g. < 0.5) is NOT met.
+
+**(c2) Thermometer — enormous, at the GPT-Neo kill's own evidentiary standard.**
+
+| pool | g_f version | thermometer | two-half cos | U-stat z | naive/ustat |
+|---|---|---|---|---|---|
+| 400x32 (primary) | subtracted | **1031** | 0.464 | 4.30 | — |
+| 400x32 (primary) | toxic-only | **1096** | 0.457 | 4.77 | — |
+| 200x16 (consistency) | subtracted | 751 | 0.064 | 1.72 | 4.65 |
+| 200x16 (consistency) | toxic-only | 738 | 0.057 | 1.82 | 5.26 |
+
+GPT-Neo E3 (200x16): thermometers 34.1 / 12.5 / 4.2 / 11.8 with two-half cos
+0.13–0.79 and z 3.7–4.2. The OLMo 200x16 pool was too noisy by that standard
+(z ~1.7, cos 0.06), so the pool was scaled 4x; at 400x32 the estimate meets the
+GPT-Neo bar (z 4.3–4.8, cos ~0.46) and the two pools agree within their noise.
+g_f: 100 Lee pairs, ||g_f|| = 0.97 (subtracted) / 1.14 (toxic-only),
+cos(mean-toxic, mean-nontoxic) = 0.556 — the baseline subtraction removes a
+substantial shared "topic" component, and both versions give the same verdict.
+
+### Verdict (per the agreed decision rules)
+
+- Thermometer ~1000 >> 0.3 on both g_f versions, AND
+- the within-prompt variance is KL-dominated (0.60 at nominal beta), AND
+- the toxicity confound is absent (the model is non-toxic), AND
+- ICC stays high (0.835 ~ GPT-Neo's 0.892).
+
+=> **DEATH-direction: A2-failure is not PPO-specific.** Switching to a
+supervised, better-converged 12x-larger model does not produce the clean-formula
+regime — the effective-reward variance does not collapse and the curvature
+contamination Delta dwarfs the eval direction, exactly as on GPT-Neo-PPO.
+The special-case flag (thermometer large but all in the reward part) does NOT
+apply — the source check points at KL, i.e. at the A2-relevant signal.
+
+**Magnitude caveat (do not over-read ~1000 vs GPT-Neo's 4–34).** The OLMo
+thermometer is 30–250x GPT-Neo's, but the two sit in different frameworks: the
+PPO model actually optimised its KL-RL objective (it is "near" its own optimum
+in a way SFT never tried to be), while OLMo-SFT's huge, variable reference-KL
+(mean 14.9) makes it *structurally* far from the nominal-beta KL-RL optimum.
+The honest cross-model statement is directional only: both are far above 0.3;
+neither is anywhere near the clean regime. Per the spec, if a universality
+conclusion is wanted at thesis level, Stage 2 (OLMo-PPO, same paradigm as
+GPT-Neo) remains the clean test — that decision is the user's.
+
+### Validation chain backing these numbers
+
+1. Gated-SwiGLU toy: HVP / Delta-VP / per-prompt gates at 1e-9/1e-8 (plus the
+   model-independent no-double-denom + MINRES gates) — 8/8.
+2. Real-OLMo HVP finite-difference: vector-HVP rel err fp32 ~3e-3, fp64
+   3.25e-4 (forward-only 1st-derivative check grounds s at 1.8e-4).
+3. EK-FAC factors at the GPT-Neo token budget: 20,540 on-policy rollouts,
+   601,418 response tokens (GPT-Neo: 20,832 / ~600k).
+4. p_f-scale check: OLMo's F^-1 amplification (~8e3) is *milder* than
+   GPT-Neo's (4–6e4 with the same damping and valid thermometers) — damping
+   left identical for comparability.
+5. The 26.8-GiB jackknife OOM on the 7x-larger phi was fixed by a streaming
+   implementation gated bit-exact against the Phase-4 reference
+   (tests/diag_streaming_stats_check.py), and the off-GPU accumulator path is
+   gated bit-exact on the gated toy.
+
+### Outputs
+
+- `data/phase5/stage1_icc.json` (ICC + decomposition + toxicity level + examples)
+- `data/phase5/stage1_thermometer_400x32.json` (primary), `stage1_thermometer.json` (200x16)
+- `data/phase5/factors/` (A/S/Q_A/Q_S/Lambda + meta, ~1.3 GB)
+- drivers: `src/run_phase5_stage1_{icc,factors,thermometer}.py`, `src/phase5/*`
+
+### Deviations / not done
+
+- Thermometer pool scaled 200x16 -> 400x32 beyond the spec's E3 default, because
+  the OLMo 200x16 estimate (z ~1.7, two-half cos 0.06) was below the GPT-Neo
+  kill's own evidentiary standard; 400x32 meets it. Both reported.
+- beta sweep applied to ICC (as specified); the thermometer uses nominal beta
+  only.
+- No left-tail/contrib tracking in the Stage-1 thermometer (not in the Stage-1
+  spec; available via track_contribs if wanted).
+- No MINRES / corrected ranking (Stage-1 is a magnitude probe; ranking analyses
+  belong to a hypothetical Stage-2/E3-style run).
+- Stage 2 (OLMo-PPO) NOT started, per instruction.
+
+---
+
 ## Section 0 + 1 reconnaissance (2026-06-02) — STOPPED at two dependency blockers
 ## (superseded by "External dependencies LANDED" above; kept for the record)
 

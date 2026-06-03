@@ -145,7 +145,10 @@ def main() -> int:
     names = list(g_versions)
     vs = [p_versions[n] for n in names]
     print("computing Delta~ p_f (matrix-free double-backward) ...")
-    d_p, order, _diag = delta_vp_per_prompt(samples, models.policy, weight, BETA_NOMINAL, vs, device)
+    # store_device="cpu": (N_p, 2048, 8192) accumulators are 25 GiB each at
+    # N_p=400 — two targets exceed the GPU; accumulate off-GPU instead.
+    d_p, order, _diag = delta_vp_per_prompt(samples, models.policy, weight, BETA_NOMINAL, vs, device,
+                                            store_device="cpu")
 
     results = {"model": "OLMo-2-0425-1B-SFT", "beta": BETA_NOMINAL, "n_prompts": n_prompts,
                "k_per_prompt": k, "n_lee_pairs": gf.n_pairs, "g_f_norms": gf.norms,
