@@ -5,7 +5,106 @@ Plain-language throughout (no math rendering).
 
 ---
 
+## External dependencies LANDED (2026-06-02, second pass)
+
+Both Section-0 blockers are resolved. This section supersedes the
+"STOPPED at two dependency blockers" reconnaissance below it.
+
+### 1. Isolated `olmo` conda environment (GPT-Neo env untouched)
+
+- New env `olmo` (Python 3.11.15): **torch 2.5.1+cu121, transformers 4.49.0,
+  numpy 2.4.6, scipy 1.17.1**, plus datasets / accelerate / safetensors /
+  gdown / matplotlib / pytest. CUDA visible (RTX 4090). transformers 4.49.0
+  chosen as a stable release that loads OLMo-2 (model card requires >= 4.48);
+  not blindly-latest.
+- The GPT-Neo baseline env is **confirmed unchanged**: torch 2.1.2+cu121,
+  transformers 4.44.2, TRL 0.9.6. Phase 4 / GPT-Neo reproducibility intact.
+- Binaries: `/root/miniconda3/envs/olmo/bin/{python,pip,gdown}`.
+
+### 2. OLMo-2 load verification (tests/diag_olmo_load.py)
+
+- **SFT (theta-star) = `allenai/OLMo-2-0425-1B-SFT`: fully verified.** Loads as
+  `Olmo2ForCausalLM` (1.485B params, fp32), tokenizer round-trips, forward OK
+  (logits vocab 100352), **peak VRAM 5.95 GB** (fp32 load + fwd; ample headroom
+  on a 48 GB card). MLP at layer 12 = `['gate_proj','up_proj','down_proj',
+  'act_fn']`; **down_proj.weight = (2048, 8192) = 16.78M params**, depth
+  12/16 = 0.750. `get_submodule('model.layers.12.mlp.down_proj')` works. This
+  confirms Section-1 phi exactly.
+- **Base (reference) = `allenai/OLMo-2-0425-1B`: fully verified.** Both
+  safetensors shards (4.98 GB + 0.96 GB, **5.95 GB fp32 total** — note: the base
+  pretrained is stored fp32, so it is ~6 GB by itself, not part of a "4.8 GB
+  total") are sha256-verified in the HF cache; `diag_olmo_load.py` now loads
+  **both** models by id (`HF_HUB_OFFLINE=1`), forward OK, tokenizer round-trip
+  OK, peak VRAM 5.95 GB → **"ALL OLMO-2 LOAD CHECKS PASSED"**. The shards were
+  pulled by a parallel-chunk curl fetcher (tests/diag_olmo_fetch_base.py) with
+  per-shard sha256 gating, then placed in the HF cache so `from_pretrained` loads
+  by id. See "proxy note" for why the standard downloader could not be used and
+  the one fetcher bug that the sha256 gate caught.
+
+### 3. Lee toxicity_pairwise data — downloadable file (NOT regeneration)
+
+- Fetched `toxicity_pairwise.zip` (ID `1BmBkhNS4R...` ) by file-id from the
+  paper's Drive folder via gdown (the folder also holds `dpo.pt`, `probe.pt`,
+  `intervene_data.zip` — skipped; only the pairwise set is needed). Zip
+  integrity OK.
+- Extracted to `data/lee_pairwise/toxicity_pairwise/`: **6 splits x 4096 lines
+  = 24,576 pairwise records.** Each line has `prompt_text` (Wikitext-2 prompt),
+  `unpert_gen_text` (non-toxic GPT-2 continuation), `pert_gen_text`
+  (PPLM-perturbed **toxic** continuation), plus GPT-2 BPE `*_input_ids`. The
+  `*_input_ids` are GPT-2 tokenization — for OLMo we re-tokenize from the
+  **text** fields (the universal anchor), not the stored ids. This is a
+  downloadable artifact; no PPLM regeneration needed.
+
+### 4. numpy-2.x compatibility of the Phase 4 estimators (reuse check)
+
+- Ran `tests/test_phase4_{variance_decomp,e2,e3}.py` under the olmo env. **Every
+  numerical test passes under numpy 2.4.6 / torch 2.5.1 / transformers 4.49**
+  (score-vs-finite-difference on the fp64 toy, split-half unbiasedness, IHVP
+  orientation, Delta-VP, HVP, MINRES with its expected CG-breakdown warning).
+  An isolated re-check (`tests/diag_olmo_estimator_compat.py`) confirms the
+  headline U-statistic matches brute force at ~1e-16 and the jackknife point at
+  ~1e-12 under numpy 2.x.
+- **One coupling to flag (NOT a numpy problem):** the estimator modules
+  transitively import `phase4.sampling -> phase1.score -> train_ppo -> trl`, and
+  TRL is deliberately absent from the olmo env (Stage 1 SFT uses no PPO). So a
+  bare `pytest` collection raises `ModuleNotFoundError: trl` on the E1/U-stat
+  paths. This is a packaging coupling, fully decouplable by making the
+  train_ppo/trl import lazy (or splitting the pure-numpy estimators out of the
+  model-coupled module). **Left for Stage 1 itself; not patched now, not worked
+  around silently** — surfaced here per the stop-and-report rule.
+
+### Proxy note (operational, why the workarounds exist)
+
+The machine has no direct internet — all egress goes through a proxy. Two are
+available and were benchmarked: the default `127.0.0.1:7890` and AutoDL's
+academic-acceleration proxy `10.37.1.23:12798` (from `source /etc/network_turbo`).
+**They are empirically equal** (~0.45-0.5 MB/s aggregate over 4 connections; turbo
+single-stream was actually slower at ~47 KB/s and timed out) — the upstream HF
+bandwidth is just ~0.5-1 MB/s this session, so "turbo" is not a speed-up here.
+
+Two failure modes hit during the base-model fetch, both routed around:
+1. **HF python downloader hangs at 0 bytes** on large streamed shards through
+   either proxy (no read-timeout fires). So shards were pulled with a
+   parallel-chunk curl fetcher (8 byte-range connections, resume, sha256 gate).
+2. **Silent range-corruption.** The proxy intermittently answers a Range request
+   with a **200 (whole file from byte 0)** instead of a **206 (partial)**. The
+   first fetcher version only checked accumulated *size*, so it appended those
+   wrong bytes and poisoned the *head* of several chunks while still hitting the
+   exact expected size → **right size, wrong sha256**. The sha256 gate caught it
+   (it did its job — nothing corrupt entered the cache). Fixed by requiring curl
+   to report **http 206** before appending an attempt; a 200/error body is
+   discarded. Re-download then verified clean.
+
+**Implication for Stage 2:** any large download here must be sha256/etag-verified,
+not size-checked, and must reject non-206 range responses. The standard
+`from_pretrained`/`hf download` path is unreliable through this proxy; use the
+verified chunk fetcher (or hf_transfer if it proves to respect the proxy — not
+installed/tested yet, and unlikely to beat the ~0.5-1 MB/s upstream cap anyway).
+
+---
+
 ## Section 0 + 1 reconnaissance (2026-06-02) — STOPPED at two dependency blockers
+## (superseded by "External dependencies LANDED" above; kept for the record)
 
 ### Dependency A — OLMo models: available, structure known, but env too old to load
 
