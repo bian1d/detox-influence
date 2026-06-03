@@ -65,13 +65,16 @@ from pathlib import Path
 from typing import Optional
 
 import torch
-import torch.nn.functional as F
 from datasets import Dataset, load_dataset
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
 )
 from trl import AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer, create_reference_model
+
+# compute_rewards / get_per_token_logprobs live in the trl-free rl_common so the
+# Phase 1/4/5 estimator code can reuse them without importing this (trl-bound) module.
+from rl_common import compute_rewards, get_per_token_logprobs
 
 POLICY_MODEL_ID = "EleutherAI/gpt-neo-125m"
 REWARD_MODEL_ID = "facebook/roberta-hate-speech-dynabench-r4-target"
@@ -173,74 +176,9 @@ def load_training_prompts(
     return Dataset.from_list(data)
 
 
-# ── reward ────────────────────────────────────────────────────────────────────
-
-def compute_rewards(
-    response_texts: list[str],
-    reward_model: AutoModelForSequenceClassification,
-    reward_tokenizer: AutoTokenizer,
-    device: str,
-) -> list[float]:
-    """
-    Returns raw nothate logits: logits[:, 0].tolist()
-
-    Label 0 = nothate, label 1 = hate. Raw logit, no softmax, no negation.
-    Higher = less toxic. This is the exact formula from the TRL tutorial.
-    """
-    inputs = reward_tokenizer(
-        response_texts,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=512,
-    ).to(device)
-    with torch.no_grad():
-        logits = reward_model(**inputs).logits.float()
-    return logits[:, 0].tolist()
-
-
-# ── per-token logprobs ─────────────────────────────────────────────────────────
-
-def get_per_token_logprobs(
-    model: AutoModelForCausalLMWithValueHead,
-    prompt_ids: torch.Tensor,
-    response_ids: torch.Tensor,
-    device: str,
-) -> torch.Tensor:
-    """
-    Full sequence forward pass (prompt + response).
-    Returns per-token log-probs for response positions only.
-    Shape: (T_response,).
-
-    Works with AutoModelForCausalLMWithValueHead (returns (logits, loss, value))
-    and plain GPT2LMHeadModel (returns CausalLMOutput with .logits).
-
-    Must be called BEFORE trainer.step() for policy_logprobs because
-    step() updates the policy model in-place.
-    """
-    T_p = prompt_ids.shape[0]
-    T_r = response_ids.shape[0]
-
-    input_ids = torch.cat(
-        [prompt_ids.to(device), response_ids.to(device)], dim=0
-    ).unsqueeze(0)  # (1, T_p + T_r)
-
-    with torch.no_grad():
-        outputs = model(input_ids)
-
-    # AutoModelForCausalLMWithValueHead returns (lm_logits, loss, value)
-    lm_logits = outputs[0] if isinstance(outputs, tuple) else outputs.logits
-    # lm_logits: (1, T_p + T_r, vocab)
-
-    log_probs = F.log_softmax(lm_logits[0], dim=-1)  # (T_p + T_r, vocab)
-
-    # For response token at position t (0-indexed):
-    # its prediction comes from log_probs at index (T_p - 1 + t)
-    response_log_probs = log_probs[T_p - 1: T_p + T_r - 1, :]  # (T_r, vocab)
-    response_ids_dev = response_ids.to(device)
-    per_token_lp = response_log_probs[torch.arange(T_r, device=device), response_ids_dev]
-
-    return per_token_lp  # (T_r,)
+# ── reward + per-token logprobs ────────────────────────────────────────────────
+# compute_rewards and get_per_token_logprobs now live in rl_common (imported
+# above) so the Phase 1/4/5 estimator code can reuse them without pulling trl.
 
 
 # ── rollout serialization ─────────────────────────────────────────────────────

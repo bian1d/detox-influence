@@ -18,7 +18,7 @@ from transformers import (
 )
 
 from phase1.sample import SampledResponse, sample_responses
-from train_ppo import compute_rewards, get_per_token_logprobs
+from rl_common import compute_rewards, get_per_token_logprobs
 
 
 def compute_reward_scores(
