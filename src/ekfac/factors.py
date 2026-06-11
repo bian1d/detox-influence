@@ -204,7 +204,7 @@ def _accumulate_one(
         )
 
         # Shift-by-one CE: logits[:-1] predict labels[1:].
-        shift_logits = logits[0, :-1].float()      # (T-1, V)
+        shift_logits = logits[0, :-1].to(torch.promote_types(logits.dtype, torch.float32))      # (T-1, V)
         shift_labels = labels[1:]                  # (T-1,)
         loss = F.cross_entropy(
             shift_logits, shift_labels,

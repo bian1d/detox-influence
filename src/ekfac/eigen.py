@@ -194,7 +194,7 @@ def _fit_lambda_one(
             generator=gen,
             ignore_index=cfg.ignore_index,
         )
-        shift_logits = logits[0, :-1].float()
+        shift_logits = logits[0, :-1].to(torch.promote_types(logits.dtype, torch.float32))
         shift_labels = labels[1:]
         loss = F.cross_entropy(
             shift_logits, shift_labels,

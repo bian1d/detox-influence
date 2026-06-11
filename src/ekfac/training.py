@@ -73,7 +73,7 @@ def _full_batch_ce_loss(
         input_ids = input_ids.unsqueeze(0)
         out = model(input_ids)
         logits = _logits_from_model_output(out)
-        shift_logits = logits[0, :-1].float()
+        shift_logits = logits[0, :-1].to(torch.promote_types(logits.dtype, torch.float32))
         shift_labels = labels[1:]
         l = F.cross_entropy(
             shift_logits, shift_labels,
@@ -157,7 +157,7 @@ def compute_per_sample_grad(
 
     out = model(input_ids)
     logits = _logits_from_model_output(out)
-    shift_logits = logits[0, :-1].float()
+    shift_logits = logits[0, :-1].to(torch.promote_types(logits.dtype, torch.float32))
     shift_labels = labels[1:]
     nll = F.cross_entropy(
         shift_logits, shift_labels,
@@ -189,7 +189,7 @@ def eval_logprob(
     input_ids = input_ids.unsqueeze(0)
     out = model(input_ids)
     logits = _logits_from_model_output(out)
-    shift_logits = logits[0, :-1].float()
+    shift_logits = logits[0, :-1].to(torch.promote_types(logits.dtype, torch.float32))
     shift_labels = labels[1:]
     nll = F.cross_entropy(
         shift_logits, shift_labels,
