@@ -57,6 +57,52 @@ def sample_pseudo_labels(
     return sampled.reshape(head_shape)
 
 
+def sample_row_aligned_labels(
+    logits_row: torch.Tensor,
+    prompt_ids: torch.Tensor,
+    response_ids: torch.Tensor,
+    *,
+    generator: torch.Generator | None,
+    ignore_index: int,
+) -> torch.Tensor:
+    """Row-aligned Fisher pseudo-labels for one sequence.
+
+    The Fisher expectation ``E_{y~π_θ}`` requires that the loss row at position
+    ``t`` (which uses ``logits[t]`` to predict the token at ``t+1``) be paired
+    with a pseudo-label sampled from *that same row's* conditional
+    ``softmax(logits[t])``. After the shift-by-one CE alignment
+    (``logits[:-1]`` vs ``labels[1:]``), row ``t`` reads ``labels[t+1]``; so the
+    masked label vector must satisfy ``labels[t+1] = pseudo[t]`` for the
+    response rows ``t in [P-1, T-2]``, i.e. ``labels[P:T] = pseudo[P-1:T-1]``.
+
+    Using ``pseudo[P:]`` instead (the previous behaviour) is an off-by-one: it
+    pairs row ``t`` with a label drawn from ``softmax(logits[t+1])`` — the NEXT
+    position's distribution — which is not the Fisher and biases S/Λ
+    (see reports/fisher_inverse_independent_audit.md). This helper is the single
+    source of truth for the alignment so it cannot drift across call sites.
+
+    Args:
+        logits_row: ``(T, V)`` logits for one sequence (``logits[0]``).
+        prompt_ids: ``(P,)``.
+        response_ids: ``(R,)`` actual recorded response tokens (forward context).
+        generator: optional generator for deterministic sampling.
+        ignore_index: cross-entropy sentinel for prompt positions.
+
+    Returns:
+        ``(P+R,)`` long labels: ``[-100]*P`` then the R row-aligned pseudo tokens.
+    """
+    P = int(prompt_ids.shape[0])
+    T = P + int(response_ids.shape[0])
+    pseudo = sample_pseudo_labels(logits_row, generator=generator)  # (T,)
+    _, labels = build_input_and_labels(
+        prompt_ids,
+        response_ids,
+        response_labels=pseudo[P - 1 : T - 1],   # row-aligned (NOT pseudo[P:])
+        ignore_index=ignore_index,
+    )
+    return labels
+
+
 def _logits_from_model_output(out: object) -> torch.Tensor:
     """HuggingFace models return a ``ModelOutput`` wrapper; toy returns the
     tensor directly. Normalise."""
@@ -147,14 +193,13 @@ def _accumulate_one(
         out = model(input_ids)
         logits = _logits_from_model_output(out)  # (1, T, V)
 
-        # Pseudo-labels y_pseudo[t] ~ softmax(logits[t]) for every position.
-        pseudo = sample_pseudo_labels(logits[0], generator=gen)  # (T,)
-        # Build masked labels via the shared helper. Inputs stay as the
-        # original sequence; labels at response positions become pseudo.
-        _, labels = build_input_and_labels(
+        # Row-aligned Fisher pseudo-labels: row t's label ~ softmax(logits[t]).
+        # (Single source of truth for the alignment; see sample_row_aligned_labels.)
+        labels = sample_row_aligned_labels(
+            logits[0],
             rollout.prompt_ids.to(device),
             rollout.response_ids.to(device),
-            response_labels=pseudo[P:],
+            generator=gen,
             ignore_index=cfg.ignore_index,
         )
 

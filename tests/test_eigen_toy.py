@@ -42,6 +42,7 @@ from ekfac.factors import (  # noqa: E402
     _logits_from_model_output,
     accumulate_AS,
     sample_pseudo_labels,
+    sample_row_aligned_labels,
 )
 from ekfac.hooks import capture_c_proj  # noqa: E402
 from ekfac.toy import ToyTransformer  # noqa: E402
@@ -176,11 +177,14 @@ def compute_per_token_fisher_beta(
         with capture_c_proj(layer) as cache:
             out = model(input_ids)
             logits = _logits_from_model_output(out)
-            pseudo = sample_pseudo_labels(logits[0], generator=gen)
-            _, labels = build_input_and_labels(
-                prompt_ids, response_ids,
-                response_labels=pseudo[plen:],
-                ignore_index=cfg.ignore_index,
+            # Row-aligned pseudo-labels — MUST use the same single source of
+            # truth as fit_lambda (sample_row_aligned_labels), otherwise this
+            # "ground truth" would share fit_lambda's alignment and the gate
+            # could only ever confirm internal consistency, not correctness
+            # (the original off-by-one self-grading trap).
+            labels = sample_row_aligned_labels(
+                logits[0], prompt_ids, response_ids,
+                generator=gen, ignore_index=cfg.ignore_index,
             )
             shift_logits = logits[0, :-1].float()
             shift_labels = labels[1:]

@@ -34,8 +34,8 @@ import torch
 import torch.nn as nn
 
 from ekfac.config import EKFACConfig
-from ekfac.data import Rollout, build_input_and_labels
-from ekfac.factors import _logits_from_model_output, sample_pseudo_labels
+from ekfac.data import Rollout
+from ekfac.factors import _logits_from_model_output, sample_row_aligned_labels
 from ekfac.hooks import capture_c_proj
 
 
@@ -186,11 +186,12 @@ def _fit_lambda_one(
     with capture_c_proj(layer) as cache:
         out = model(input_ids)
         logits = _logits_from_model_output(out)
-        pseudo = sample_pseudo_labels(logits[0], generator=gen)
-        _, labels = build_input_and_labels(
+        # Row-aligned Fisher pseudo-labels (same single source of truth as Stage 1A).
+        labels = sample_row_aligned_labels(
+            logits[0],
             rollout.prompt_ids.to(device),
             rollout.response_ids.to(device),
-            response_labels=pseudo[P:],
+            generator=gen,
             ignore_index=cfg.ignore_index,
         )
         shift_logits = logits[0, :-1].float()
