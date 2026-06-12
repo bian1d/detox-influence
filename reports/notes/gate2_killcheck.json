@@ -1,0 +1,53 @@
+{
+  "n_factor_rollouts": 9408,
+  "n_tok_factors": 200484,
+  "beta": 0.23652004338891985,
+  "seq_stats": {
+    "n_pairs": 800,
+    "adv_mean": 1.6108353793586139,
+    "adv_min": -5.279681086540222,
+    "adv_max": 4.736129596829414
+  },
+  "gf_robust_norms": {
+    "n_pairs": 100,
+    "norm_mean_toxic": 0.11644230726698765,
+    "norm_mean_nontoxic": 0.0967629139011298,
+    "norm_subtracted": 0.07290675709139216,
+    "cos_tox_nontox": 0.7813088300104245
+  },
+  "n_pool": 3200,
+  "n_prompts": 200,
+  "k": 16,
+  "targets": {
+    "seq": {
+      "thermometer_raw": 70.70286681641288,
+      "delta_p_norm": 7.539860651316858,
+      "g_f_norm": 0.10664151244241434,
+      "two_half_cosine": 0.8531085022800576,
+      "metric_ratio_c": 13.446325040604188,
+      "thermometer_metric_honest_est": 950.6937285160354,
+      "old_thermometer": 34.0
+    },
+    "toxic_subtracted": {
+      "thermometer_raw": 8.500716766198321,
+      "delta_p_norm": 0.6197596923759457,
+      "g_f_norm": 0.07290675709139216,
+      "two_half_cosine": 0.2220585343855634,
+      "metric_ratio_c": 21.69356545743569,
+      "thermometer_metric_honest_est": 184.41085560264432,
+      "old_thermometer": 12.0
+    },
+    "toxic_only": {
+      "thermometer_raw": 42.13048903515483,
+      "delta_p_norm": 4.905771349539953,
+      "g_f_norm": 0.11644230726698765,
+      "two_half_cosine": 0.8173836440951566,
+      "metric_ratio_c": 17.267028052649305,
+      "thermometer_metric_honest_est": 727.4683360418525,
+      "old_thermometer": 12.0
+    }
+  },
+  "max_thermometer_raw": 70.70286681641288,
+  "verdict": "KILL survives (>>0.3)",
+  "note": "raw thermometer uses per-token EK-FAC F; metric-honest ~ c x raw is LARGER (per-sample-score-metric); kill direction is reinforced, ranking is scale-invariant. Old buggy-era thermometers seq/C1/C2/C3 = 34/12/4/12."
+}

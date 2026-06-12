@@ -1,0 +1,48 @@
+{
+  "n_factor_rollouts": 9408,
+  "n_tok_factors": 200484,
+  "n_tok_delta_pool": 68102,
+  "beta": 0.23652004338891985,
+  "seq_stats": {
+    "n_pairs": 800,
+    "adv_mean": 1.6108353793586139,
+    "adv_min": -5.279681086540222,
+    "adv_max": 4.736129596829414
+  },
+  "gf_robust_norms": {
+    "n_pairs": 100,
+    "norm_mean_toxic": 0.11644230726698765,
+    "norm_mean_nontoxic": 0.0967629139011298,
+    "norm_subtracted": 0.07290675709139216,
+    "cos_tox_nontox": 0.7813088300104245
+  },
+  "n_pool": 3200,
+  "n_prompts": 200,
+  "k": 16,
+  "targets": {
+    "seq": {
+      "thermometer": 106.12015480883159,
+      "delta_p_norm": 11.31681380943695,
+      "g_f_norm": 0.10664151244241434,
+      "two_half_cosine": 0.924848401598592,
+      "old_thermometer_persample": 34.0
+    },
+    "toxic_subtracted": {
+      "thermometer": 14.914289759176883,
+      "delta_p_norm": 1.0873525006629468,
+      "g_f_norm": 0.07290675709139216,
+      "two_half_cosine": 0.23353750373702345,
+      "old_thermometer_persample": 12.0
+    },
+    "toxic_only": {
+      "thermometer": 56.8630565424779,
+      "delta_p_norm": 6.621265502059304,
+      "g_f_norm": 0.11644230726698765,
+      "two_half_cosine": 0.7822572302175599,
+      "old_thermometer_persample": 12.0
+    }
+  },
+  "max_thermometer": 106.12015480883159,
+  "verdict": "KILL (>0.3)",
+  "note": "PER-TOKEN-granularity Delta (diagonal score term + sum-HVP, /total-tokens) matching the per-token EK-FAC Fisher F_tok. Thermometer is a same-granularity ratio, NO c correction. Compare to the OLD per-sample-mean Delta + c-estimate (gate2_killcheck.json): seq/toxic raw were 70.7/8.5/42.1 with c~13-22."
+}

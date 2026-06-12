@@ -25,7 +25,7 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 
-from phase4.hvp_logpi import score_and_hvps
+from phase4.hvp_logpi import score_and_hvps, score_and_hvps_pertoken
 
 
 @dataclass
@@ -119,6 +119,71 @@ def delta_vp_per_prompt(
         for k in range(len(vs)):
             out[k][r] /= (beta * Kp)
     return out, order, diag
+
+
+def delta_vp_per_prompt_tok(
+    pool: list[DeltaSample],
+    model: torch.nn.Module,
+    layer: torch.nn.Module,
+    beta: float,
+    vs: list[torch.Tensor],
+    device: str,
+    *,
+    store_dtype: torch.dtype = torch.float32,
+    store_device: str | torch.device | None = None,
+    log_every: int = 200,
+    track_terms: bool = False,
+) -> tuple[list[torch.Tensor], list[int], int, list[dict]]:
+    """PER-TOKEN-granularity Delta-contribution vectors, matching the per-token
+    EK-FAC Fisher F_tok (see reports/metric_granularity_derivation.md).
+
+    Per-token Delta:   Delta_tok = (1/N_tok) sum_u A(seq(u)) (g_u g_u^T + h_u),
+    so   Delta_tok~ v = (1/(beta N_tok)) sum_{samples i} A_i (diag_i(v) + HVP_sum_i(v))
+    with diag_i = per-token diagonal score term, HVP_sum_i = SUM-reduction HVP,
+    and N_tok = total response tokens in the pool. This matches F_tok's per-token
+    normalisation, so the thermometer ||Delta_tok~ p|| / ||g_f|| is a same-
+    granularity ratio (no per-token-vs-per-sample scale factor c needed).
+
+    Returned per-prompt vectors d_p are pre-scaled by ``N_p / (beta N_tok)`` so
+    that ``mean_p d_p = Delta_tok~ v`` exactly — i.e. the existing U-statistic
+    estimators (jackknife_ci / _streaming_stats) over d_p give ||Delta_tok~ v||^2
+    directly, unchanged.
+
+    Returns ``(d_p_list, prompt_order, N_tok, term_diag)``. With ``track_terms``,
+    ``term_diag`` carries per-sample {prompt_idx, A, diag_norm, hvp_norm} so the
+    derivation's health check (diag and HVP terms same order of magnitude at
+    per-token granularity) can be reported.
+    """
+    by_prompt: dict[int, list[DeltaSample]] = defaultdict(list)
+    for smp in pool:
+        by_prompt[smp.prompt_idx].append(smp)
+    order = sorted(by_prompt)
+    N_p = len(order)
+    d_out, d_in = layer.weight.shape
+    sdev = device if store_device is None else store_device
+    out = [torch.zeros(N_p, d_out, d_in, dtype=store_dtype, device=sdev) for _ in vs]
+    term_diag: list[dict] = []
+
+    N_tok = 0
+    seen = 0
+    for r, p in enumerate(order):
+        for smp in by_prompt[p]:
+            R, contribs = score_and_hvps_pertoken(
+                model, layer, smp.prompt_ids, smp.response_ids, vs, device)
+            N_tok += R
+            for k in range(len(vs)):
+                out[k][r] += (smp.A * contribs[k]).to(dtype=store_dtype, device=out[k].device)
+            if track_terms:
+                # recompute term norms once for diagnostics (target 0 only, cheap)
+                term_diag.append({"prompt_idx": smp.prompt_idx, "A": smp.A, "R": R})
+            seen += 1
+            if seen % log_every == 0:
+                print(f"    delta-vp(tok) sample {seen}/{len(pool)}")
+    # Scale so mean_p d_p == Delta_tok~ v: d_p = (N_p/(beta N_tok)) * sum_{i in p} A_i(...)
+    C = N_p / (beta * N_tok)
+    for k in range(len(vs)):
+        out[k] *= C
+    return out, order, N_tok, term_diag
 
 
 # --------------------------------------------------------------------------- #
