@@ -1,0 +1,111 @@
+{
+  "n_rollouts": 20832,
+  "k_top10pct": 2083,
+  "targets": {
+    "toxic_subtracted": {
+      "spearman_base_vs_corr": 0.5589270970993843,
+      "jaccard_top10_base_vs_corr_signed": 0.19506597819850832,
+      "jaccard_top10_base_vs_corr_abs": 0.22134271474640868,
+      "profile_top10_signed": {
+        "reward_mean": 3.6540133428844377,
+        "reward_median": 4.095330715179443,
+        "step_mean": 365.1301008161306,
+        "step_median": 389.0,
+        "len_mean": 20.618338934229477,
+        "n": 2083
+      },
+      "profile_top10_abs": {
+        "reward_mean": 2.8945636159170998,
+        "reward_median": 3.4875385761260986,
+        "step_mean": 263.8233317330773,
+        "step_median": 241.0,
+        "len_mean": 22.507921267402786,
+        "n": 2083
+      },
+      "profile_bottom10_signed": {
+        "reward_mean": 2.8072992531855223,
+        "reward_median": 3.375249147415161,
+        "step_mean": 250.28036485837734,
+        "step_median": 210.0,
+        "len_mean": 23.267402784445512,
+        "n": 2083
+      }
+    },
+    "seq": {
+      "spearman_base_vs_corr": 0.9442702140482981,
+      "jaccard_top10_base_vs_corr_signed": 0.5702977761025254,
+      "jaccard_top10_base_vs_corr_abs": 0.6630738522954092,
+      "profile_top10_signed": {
+        "reward_mean": 3.4969286687501793,
+        "reward_median": 4.0957536697387695,
+        "step_mean": 406.91022563610176,
+        "step_median": 412.0,
+        "len_mean": 15.84733557369179,
+        "n": 2083
+      },
+      "profile_top10_abs": {
+        "reward_mean": 3.3565802777349676,
+        "reward_median": 3.660588264465332,
+        "step_mean": 311.8276524243879,
+        "step_median": 332.0,
+        "len_mean": 20.96975516082573,
+        "n": 2083
+      },
+      "profile_bottom10_signed": {
+        "reward_mean": 3.3555253976218284,
+        "reward_median": 3.660588264465332,
+        "step_mean": 311.72011521843496,
+        "step_median": 332.0,
+        "len_mean": 20.984157465194432,
+        "n": 2083
+      }
+    },
+    "toxic_only": {
+      "spearman_base_vs_corr": 0.8684874369021008,
+      "jaccard_top10_base_vs_corr_signed": 0.4355616815988973,
+      "jaccard_top10_base_vs_corr_abs": 0.4311233253177602,
+      "profile_top10_signed": {
+        "reward_mean": 3.6884812407098995,
+        "reward_median": 4.198325157165527,
+        "step_mean": 407.6380220835334,
+        "step_median": 416.0,
+        "len_mean": 16.234757561209793,
+        "n": 2083
+      },
+      "profile_top10_abs": {
+        "reward_mean": 3.180840641208506,
+        "reward_median": 3.615461587905884,
+        "step_mean": 247.2289966394623,
+        "step_median": 191.0,
+        "len_mean": 23.53960633701392,
+        "n": 2083
+      },
+      "profile_bottom10_signed": {
+        "reward_mean": 3.17851741772044,
+        "reward_median": 3.612480878829956,
+        "step_mean": 246.46663466154584,
+        "step_median": 187.0,
+        "len_mean": 23.5885741718675,
+        "n": 2083
+      }
+    }
+  },
+  "random_profile": {
+    "reward_mean": 3.4655538595525663,
+    "reward_median": 3.916341781616211,
+    "step_mean": 328.0820931349016,
+    "step_median": 334.0,
+    "len_mean": 22.932789246279405,
+    "n": 2083
+  },
+  "all_profile": {
+    "reward_mean": 3.4334903426545984,
+    "reward_median": 3.897258996963501,
+    "step_mean": 325.0,
+    "step_median": 325.0,
+    "len_mean": 23.10608678955453,
+    "n": 20832
+  },
+  "jaccard_toxic_vs_seq_top10_abs": 0.10357615894039734,
+  "jaccard_toxic_vs_seq_top10_signed": 0.0803941908713693
+}

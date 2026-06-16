@@ -1,0 +1,155 @@
+{
+  "n_labeled": 5307,
+  "n_missing": 0,
+  "roberta_clean_threshold": 0.0,
+  "sets": {
+    "sub_top": {
+      "n": 2083,
+      "toxic_rate": 0.1095,
+      "n_toxic": 228,
+      "category_counts": {
+        "race": 38,
+        "gender": 8,
+        "orientation": 10,
+        "profanity_abuse": 88,
+        "violence_threat": 19,
+        "sexual": 65,
+        "other": 0
+      },
+      "category_frac_of_toxic": {
+        "race": 0.1667,
+        "gender": 0.0351,
+        "orientation": 0.0439,
+        "profanity_abuse": 0.386,
+        "violence_threat": 0.0833,
+        "sexual": 0.2851,
+        "other": 0.0
+      },
+      "reward_mean": 2.895,
+      "roberta_missed_count": 164,
+      "roberta_missed_frac_of_toxic": 0.7193,
+      "roberta_missed_by_cat": {
+        "race": 19,
+        "gender": 5,
+        "orientation": 7,
+        "profanity_abuse": 64,
+        "violence_threat": 17,
+        "sexual": 52,
+        "other": 0
+      },
+      "roberta_missed_nonhate_frac": 0.811,
+      "among_roberta_clean_agent_toxic_rate": 0.085
+    },
+    "tox_top": {
+      "n": 2083,
+      "toxic_rate": 0.0494,
+      "n_toxic": 103,
+      "category_counts": {
+        "race": 18,
+        "gender": 3,
+        "orientation": 9,
+        "profanity_abuse": 35,
+        "violence_threat": 8,
+        "sexual": 30,
+        "other": 0
+      },
+      "category_frac_of_toxic": {
+        "race": 0.1748,
+        "gender": 0.0291,
+        "orientation": 0.0874,
+        "profanity_abuse": 0.3398,
+        "violence_threat": 0.0777,
+        "sexual": 0.2913,
+        "other": 0.0
+      },
+      "reward_mean": 3.181,
+      "roberta_missed_count": 77,
+      "roberta_missed_frac_of_toxic": 0.7476,
+      "roberta_missed_by_cat": {
+        "race": 9,
+        "gender": 3,
+        "orientation": 6,
+        "profanity_abuse": 27,
+        "violence_threat": 7,
+        "sexual": 25,
+        "other": 0
+      },
+      "roberta_missed_nonhate_frac": 0.7662,
+      "among_roberta_clean_agent_toxic_rate": 0.0383
+    },
+    "random": {
+      "n": 1000,
+      "toxic_rate": 0.047,
+      "n_toxic": 47,
+      "category_counts": {
+        "race": 14,
+        "gender": 1,
+        "orientation": 1,
+        "profanity_abuse": 13,
+        "violence_threat": 9,
+        "sexual": 8,
+        "other": 1
+      },
+      "category_frac_of_toxic": {
+        "race": 0.2979,
+        "gender": 0.0213,
+        "orientation": 0.0213,
+        "profanity_abuse": 0.2766,
+        "violence_threat": 0.1915,
+        "sexual": 0.1702,
+        "other": 0.0213
+      },
+      "reward_mean": 3.455,
+      "roberta_missed_count": 40,
+      "roberta_missed_frac_of_toxic": 0.8511,
+      "roberta_missed_by_cat": {
+        "race": 9,
+        "gender": 1,
+        "orientation": 1,
+        "profanity_abuse": 13,
+        "violence_threat": 8,
+        "sexual": 7,
+        "other": 1
+      },
+      "roberta_missed_nonhate_frac": 0.725,
+      "among_roberta_clean_agent_toxic_rate": 0.0411
+    },
+    "bottom": {
+      "n": 1000,
+      "toxic_rate": 0.026,
+      "n_toxic": 26,
+      "category_counts": {
+        "race": 7,
+        "gender": 1,
+        "orientation": 0,
+        "profanity_abuse": 8,
+        "violence_threat": 6,
+        "sexual": 4,
+        "other": 0
+      },
+      "category_frac_of_toxic": {
+        "race": 0.2692,
+        "gender": 0.0385,
+        "orientation": 0.0,
+        "profanity_abuse": 0.3077,
+        "violence_threat": 0.2308,
+        "sexual": 0.1538,
+        "other": 0.0
+      },
+      "reward_mean": 3.591,
+      "roberta_missed_count": 22,
+      "roberta_missed_frac_of_toxic": 0.8462,
+      "roberta_missed_by_cat": {
+        "race": 5,
+        "gender": 1,
+        "orientation": 0,
+        "profanity_abuse": 8,
+        "violence_threat": 5,
+        "sexual": 3,
+        "other": 0
+      },
+      "roberta_missed_nonhate_frac": 0.7273,
+      "among_roberta_clean_agent_toxic_rate": 0.0225
+    }
+  }
+}

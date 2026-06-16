@@ -1,0 +1,18 @@
+{
+  "n_rollouts": 20832,
+  "n_layers": 24,
+  "targets": {
+    "seq": {
+      "spearman_allmlp_vs_l9": 0.9060801873748873,
+      "pearson": 0.9037844861941483,
+      "jaccard_top10pct_abs": 0.5649887302779865,
+      "jaccard_top100_abs": 0.5503875968992248
+    },
+    "toxic_subtracted": {
+      "spearman_allmlp_vs_l9": 0.41658267463849197,
+      "pearson": 0.42596474131040135,
+      "jaccard_top10pct_abs": 0.16466312552418227,
+      "jaccard_top100_abs": 0.07526881720430108
+    }
+  }
+}

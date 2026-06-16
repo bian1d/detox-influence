@@ -33,3 +33,13 @@ __pycache__/
 # Large data formats
 *.pt
 *.safetensors
+*.npy
+*.npz
+*.bin
+*.ckpt
+*.arrow
+*.gguf
+*.h5
+
+# Editor / scratch backups
+*.bak
